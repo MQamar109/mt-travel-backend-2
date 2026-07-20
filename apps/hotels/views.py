@@ -22,11 +22,14 @@ from .invoice import generate_hotel_invoice
 class HotelListCreateView(RunningBalanceListMixin, ListCreateAPIView):
     serializer_class = HotelSerializer
     filterset_class = HotelFilter
-    search_fields = ['guest_name', 'hotel_name', 'reservation_no', 'vendor__name']
+    search_fields = ['guest_name', 'hotel_name', 'reservation_no', 'vendor__name', 'property__name']
     ordering_fields = ['issued_date', 'check_in', 'total_amount', 'created_at']
 
     def get_queryset(self):
-        return org_scoped(Hotel.objects.select_related('vendor', 'created_by'), self.request.user)
+        return org_scoped(
+            Hotel.objects.select_related('vendor', 'created_by', 'property'),
+            self.request.user,
+        )
 
     def perform_create(self, serializer):
         require_organization(self.request.user)
@@ -37,7 +40,10 @@ class HotelDetailView(RetrieveUpdateDestroyAPIView):
     serializer_class = HotelSerializer
 
     def get_queryset(self):
-        return org_scoped(Hotel.objects.select_related('vendor', 'created_by'), self.request.user)
+        return org_scoped(
+            Hotel.objects.select_related('vendor', 'created_by', 'property'),
+            self.request.user,
+        )
 
     def get_permissions(self):
         if self.request.method == 'DELETE':

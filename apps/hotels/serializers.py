@@ -8,11 +8,15 @@ class HotelSerializer(serializers.ModelSerializer):
     created_by_email = serializers.EmailField(source='created_by.email', read_only=True)
     exchange_rate = serializers.DecimalField(max_digits=8, decimal_places=4, required=True)
     running_balance = serializers.SerializerMethodField()
+    property_name = serializers.CharField(source='property.name', read_only=True)
+    property_address = serializers.CharField(source='property.address', read_only=True)
+    property_phone = serializers.CharField(source='property.phone', read_only=True)
 
     class Meta:
         model = Hotel
         fields = [
             'id', 'vendor', 'vendor_name', 'created_by', 'created_by_email',
+            'property', 'property_name', 'property_address', 'property_phone',
             'guest_name', 'reservation_no', 'hotel_name',
             'issued_date', 'check_in', 'check_out', 'nights',
             'single_qty', 'single_rate', 'double_qty', 'double_rate',
@@ -23,7 +27,9 @@ class HotelSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'created_by', 'created_by_email', 'nights',
+            'id', 'created_by', 'created_by_email', 'hotel_name',
+            'property_name', 'property_address', 'property_phone',
+            'nights',
             'total_guests', 'total_room_amount', 'total_meal_amount', 'total_amount',
             'running_balance', 'pkr_amount', 'created_at', 'updated_at',
         ]
@@ -40,6 +46,15 @@ class HotelSerializer(serializers.ModelSerializer):
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
             raise serializers.ValidationError('This reservation number already exists in your organization.')
+        return value
+
+    def validate_property(self, value):
+        request = self.context.get('request')
+        if not request or not value:
+            return value
+        org_id = getattr(request.user, 'organization_id', None)
+        if org_id and value.organization_id != org_id:
+            raise serializers.ValidationError('Selected hotel is not available for your organization.')
         return value
 
     def get_running_balance(self, obj):
@@ -133,5 +148,14 @@ class HotelSerializer(serializers.ModelSerializer):
         # Ensure at least one room type
         if single_qty + double_qty + triple_qty + quad_qty == 0:
             raise serializers.ValidationError('At least one room type must have quantity > 0')
+
+        property_val = data.get('property')
+        if self.instance is None:
+            if not property_val:
+                raise serializers.ValidationError({'property': 'Please select a hotel from the list.'})
+        else:
+            effective_property = property_val if 'property' in data else self.instance.property
+            if not effective_property:
+                raise serializers.ValidationError({'property': 'Please select a hotel from the list.'})
 
         return data

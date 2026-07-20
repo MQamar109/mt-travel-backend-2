@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from apps.core.models import TimeStampedModel
 from apps.vendors.models import Vendor
+from .property_models import HotelProperty
 
 CURRENCY_CHOICES = [('PKR', 'PKR'), ('SAR', 'SAR')]
 PAYMENT_CHOICES = [('Credit', 'Credit'), ('Debit', 'Debit')]
@@ -11,6 +12,13 @@ class Hotel(TimeStampedModel):
         'organizations.Organization',
         on_delete=models.PROTECT,
         related_name='hotels',
+        null=True,
+        blank=True,
+    )
+    property = models.ForeignKey(
+        HotelProperty,
+        on_delete=models.PROTECT,
+        related_name='bookings',
         null=True,
         blank=True,
     )
@@ -51,6 +59,8 @@ class Hotel(TimeStampedModel):
         ]
 
     def save(self, *args, **kwargs):
+        if self.property_id and self.property:
+            self.hotel_name = self.property.name
         if self.check_in and self.check_out:
             self.nights = (self.check_out - self.check_in).days
         self.total_guests = (

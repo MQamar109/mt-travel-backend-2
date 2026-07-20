@@ -4,9 +4,15 @@ set -euo pipefail
 export PATH="$HOME/Library/Python/3.13/bin:$HOME/.local/bin:/usr/local/bin:/opt/homebrew/bin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+if [[ -d "$SCRIPT_DIR/../../mt-travel-frontend" ]]; then
+  WORKSPACE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+elif [[ -d "$SCRIPT_DIR/../../../mt-travel-frontend" ]]; then
+  WORKSPACE_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+else
+  die "Cannot find mt-travel-frontend directory near $SCRIPT_DIR"
+fi
 FRONTEND_DIR="$WORKSPACE_DIR/mt-travel-frontend"
-BACKEND_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+BACKEND_DIR="$WORKSPACE_DIR/mt-travel-backend-2"
 KEYS_DIR="$SCRIPT_DIR/keys"
 STATE_FILE="$SCRIPT_DIR/.deploy-state.env"
 
@@ -208,8 +214,11 @@ DB_PASSWORD=${DB_PASSWORD}
 DB_HOST=db
 DB_PORT=5432
 CORS_ALLOWED_ORIGINS=${CORS_ORIGIN}
+CSRF_TRUSTED_ORIGINS=http://${PUBLIC_IP}:8000,http://${PUBLIC_DNS}:8000,https://${CLOUDFRONT_DOMAIN}
+CSRF_COOKIE_SECURE=False
+SESSION_COOKIE_SECURE=False
 DJANGO_SETTINGS_MODULE=config.settings.prod
-SECURE_SSL_REDIRECT=True
+SECURE_SSL_REDIRECT=False
 EMAIL_HOST_USER=${EMAIL_USER}
 EMAIL_HOST_PASSWORD=${EMAIL_PASS}
 ENV
@@ -391,6 +400,7 @@ cmd_all() {
   save_state
   wait_for_ssh
   ensure_s3_bucket
+  save_state
   ensure_cloudfront
   save_state
   configure_backend_on_ec2
