@@ -17,6 +17,7 @@ from .serializers import TicketSerializer
 from .filters import TicketFilter
 from .exports import generate_excel, generate_pdf
 from .email_report import send_ticket_report
+from apps.core.invoice_billing import invoice_billing_for_user
 from .invoice import generate_ticket_invoice
 
 
@@ -177,7 +178,8 @@ class TicketInvoiceView(APIView):
         display_currency = request.query_params.get('currency', 'PKR').upper()
         optional_fields = _parse_optional(request)
 
-        buf = generate_ticket_invoice(ticket, display_currency, optional_fields)
+        billing = invoice_billing_for_user(request.user)
+        buf = generate_ticket_invoice(ticket, display_currency, optional_fields, billing=billing)
         response = HttpResponse(buf, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="invoice_{ticket.invoice_no}.pdf"'
         return response
@@ -205,7 +207,8 @@ class TicketInvoiceEmailView(APIView):
         try:
             from django.conf import settings as django_settings
             from django.core.mail import EmailMessage
-            buf = generate_ticket_invoice(ticket, display_currency, optional_fields)
+            billing = invoice_billing_for_user(request.user)
+        buf = generate_ticket_invoice(ticket, display_currency, optional_fields, billing=billing)
             email = EmailMessage(
                 subject=f'Invoice {ticket.invoice_no} – {ticket.customer_name}',
                 body='Please find your invoice attached.',

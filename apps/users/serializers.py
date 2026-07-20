@@ -33,5 +33,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'first_name', 'last_name', 'role', 'organization', 'organization_name', 'created_at']
-        read_only_fields = ['id', 'email', 'role', 'organization', 'organization_name', 'created_at']
+        fields = [
+            'id', 'email', 'first_name', 'last_name', 'role',
+            'organization', 'organization_name',
+            'account_no', 'bank', 'account_name',
+            'created_at',
+        ]
+        read_only_fields = [
+            'id', 'email', 'role', 'organization', 'organization_name', 'created_at',
+        ]

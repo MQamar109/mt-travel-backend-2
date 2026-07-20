@@ -10,6 +10,7 @@ from reportlab.platypus import (
 )
 
 from apps.core.company import COMPANY
+from apps.core.invoice_footer import invoice_footer_flowables
 from apps.core.logo import make_logo_drawing
 from apps.tickets.utils import get_display_amount
 
@@ -36,7 +37,7 @@ def _para(text, style):
     return Paragraph(str(text), style)
 
 
-def generate_passport_invoice(passport, display_currency, optional_fields):
+def generate_passport_invoice(passport, display_currency, optional_fields, billing=None):
     """
     optional_fields: set of strings from {'payment_type', 'description', 'issued_date'}
     Returns a BytesIO containing the PDF.
@@ -169,21 +170,7 @@ def generate_passport_invoice(passport, display_currency, optional_fields):
     el.append(HRFlowable(width='100%', thickness=1, color=_DIVIDER))
     el.append(Spacer(1, 10))
 
-    company_block = [
-        _para(COMPANY['name'],         s_footer_b),
-        _para(f"Account No: {COMPANY['account_no']}", s_footer),
-        _para(f"Bank: {COMPANY['bank']}",             s_footer),
-        _para(f"Account Name: {COMPANY['account_name']}", s_footer),
-    ]
-    footer_logo = make_logo_drawing(130, 46)
-    footer_tbl = Table([[company_block, footer_logo]], colWidths=['60%', '40%'])
-    footer_tbl.setStyle(TableStyle([
-        ('VALIGN',  (0, 0), (-1, -1), 'BOTTOM'),
-        ('ALIGN',   (1, 0), (1, 0),   'RIGHT'),
-        ('TOPPADDING',    (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
-    el.append(footer_tbl)
+    el.append(invoice_footer_flowables(billing or COMPANY, s_footer_b, s_footer, _DIVIDER))
 
     doc.build(el)
     buf.seek(0)

@@ -15,6 +15,9 @@ class CustomUser(AbstractUser):
         null=True,
         blank=True,
     )
+    account_no = models.CharField(max_length=64, blank=True, default='')
+    bank = models.CharField(max_length=128, blank=True, default='')
+    account_name = models.CharField(max_length=128, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

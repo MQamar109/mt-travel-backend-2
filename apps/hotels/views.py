@@ -17,6 +17,7 @@ from .serializers import HotelSerializer
 from .filters import HotelFilter
 from .exports import generate_excel, generate_pdf
 from .email_report import send_hotel_report
+from apps.core.invoice_billing import invoice_billing_for_user
 from .invoice import generate_hotel_invoice
 
 class HotelListCreateView(RunningBalanceListMixin, ListCreateAPIView):
@@ -163,7 +164,8 @@ class HotelInvoiceView(APIView):
         display_currency = request.query_params.get('currency', 'PKR').upper()
         optional_fields = _parse_optional(request)
 
-        buf = generate_hotel_invoice(hotel, display_currency, optional_fields)
+        billing = invoice_billing_for_user(request.user)
+        buf = generate_hotel_invoice(hotel, display_currency, optional_fields, billing=billing)
         response = HttpResponse(buf, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="invoice_{hotel.reservation_no}.pdf"'
         return response
@@ -191,7 +193,8 @@ class HotelInvoiceEmailView(APIView):
         try:
             from django.conf import settings as django_settings
             from django.core.mail import EmailMessage
-            buf = generate_hotel_invoice(hotel, display_currency, optional_fields)
+            billing = invoice_billing_for_user(request.user)
+        buf = generate_hotel_invoice(hotel, display_currency, optional_fields, billing=billing)
             email = EmailMessage(
                 subject=f'Invoice {hotel.reservation_no} – {hotel.guest_name}',
                 body='Please find your invoice attached.',

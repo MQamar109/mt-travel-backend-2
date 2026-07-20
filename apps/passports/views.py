@@ -17,6 +17,7 @@ from .serializers import PassportSerializer
 from .filters import PassportFilter
 from .exports import generate_excel, generate_pdf
 from .email_report import send_passport_report
+from apps.core.invoice_billing import invoice_billing_for_user
 from .invoice import generate_passport_invoice
 
 
@@ -149,7 +150,8 @@ class PassportInvoiceView(APIView):
         display_currency = request.query_params.get('currency', 'PKR').upper()
         optional_fields = _parse_optional(request)
 
-        buf = generate_passport_invoice(passport, display_currency, optional_fields)
+        billing = invoice_billing_for_user(request.user)
+        buf = generate_passport_invoice(passport, display_currency, optional_fields, billing=billing)
         response = HttpResponse(buf, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="invoice_{passport.invoice_no}.pdf"'
         return response
@@ -177,7 +179,8 @@ class PassportInvoiceEmailView(APIView):
         try:
             from django.conf import settings as django_settings
             from django.core.mail import EmailMessage
-            buf = generate_passport_invoice(passport, display_currency, optional_fields)
+            billing = invoice_billing_for_user(request.user)
+        buf = generate_passport_invoice(passport, display_currency, optional_fields, billing=billing)
             email = EmailMessage(
                 subject=f'Invoice {passport.invoice_no} – {passport.client_name}',
                 body='Please find your invoice attached.',
