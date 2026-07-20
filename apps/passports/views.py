@@ -180,7 +180,7 @@ class PassportInvoiceEmailView(APIView):
             from django.conf import settings as django_settings
             from django.core.mail import EmailMessage
             billing = invoice_billing_for_user(request.user)
-        buf = generate_passport_invoice(passport, display_currency, optional_fields, billing=billing)
+            buf = generate_passport_invoice(passport, display_currency, optional_fields, billing=billing)
             email = EmailMessage(
                 subject=f'Invoice {passport.invoice_no} – {passport.client_name}',
                 body='Please find your invoice attached.',

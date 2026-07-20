@@ -194,7 +194,7 @@ class HotelInvoiceEmailView(APIView):
             from django.conf import settings as django_settings
             from django.core.mail import EmailMessage
             billing = invoice_billing_for_user(request.user)
-        buf = generate_hotel_invoice(hotel, display_currency, optional_fields, billing=billing)
+            buf = generate_hotel_invoice(hotel, display_currency, optional_fields, billing=billing)
             email = EmailMessage(
                 subject=f'Invoice {hotel.reservation_no} – {hotel.guest_name}',
                 body='Please find your invoice attached.',

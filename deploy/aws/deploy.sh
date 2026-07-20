@@ -204,6 +204,14 @@ configure_backend_on_ec2() {
   ssh -o StrictHostKeyChecking=no -i "$KEY_FILE" "ec2-user@$PUBLIC_IP" bash -s <<EOF
 set -euo pipefail
 cd ~/mt-travel-backend-2
+OLD_EMAIL=\$(grep -E '^EMAIL_HOST_USER=' .env 2>/dev/null | cut -d= -f2- || true)
+OLD_PASS=\$(grep -E '^EMAIL_HOST_PASSWORD=' .env 2>/dev/null | cut -d= -f2- || true)
+git fetch origin main
+git reset --hard origin/main
+EMAIL_USER="${EMAIL_USER}"
+EMAIL_PASS="${EMAIL_PASS}"
+if [[ -z "\$EMAIL_USER" && -n "\$OLD_EMAIL" ]]; then EMAIL_USER="\$OLD_EMAIL"; fi
+if [[ -z "\$EMAIL_PASS" && -n "\$OLD_PASS" ]]; then EMAIL_PASS="\$OLD_PASS"; fi
 cat > .env <<ENV
 SECRET_KEY=${SECRET_KEY}
 DEBUG=False
@@ -219,11 +227,13 @@ CSRF_COOKIE_SECURE=False
 SESSION_COOKIE_SECURE=False
 DJANGO_SETTINGS_MODULE=config.settings.prod
 SECURE_SSL_REDIRECT=False
-EMAIL_HOST_USER=${EMAIL_USER}
-EMAIL_HOST_PASSWORD=${EMAIL_PASS}
+EMAIL_HOST_USER=\${EMAIL_USER}
+EMAIL_HOST_PASSWORD=\${EMAIL_PASS}
+DEFAULT_FROM_EMAIL=\${EMAIL_USER:-noreply@mtt.com}
 ENV
 sudo docker compose -f docker-compose.prod.yml up -d --build
 sudo docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
+sudo docker compose -f docker-compose.prod.yml exec -T web python manage.py showmigrations --plan 2>&1 | tail -20
 echo "Backend containers started."
 EOF
 }

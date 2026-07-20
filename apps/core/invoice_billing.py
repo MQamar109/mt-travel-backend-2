@@ -1,3 +1,5 @@
+from django.contrib.auth import get_user_model
+
 from apps.core.company import COMPANY
 
 
@@ -13,6 +15,14 @@ def invoice_billing_for_user(user):
     """
     if user is None or not getattr(user, 'is_authenticated', False):
         return dict(COMPANY)
+
+    User = get_user_model()
+    if user.pk:
+        user = (
+            User.objects.filter(pk=user.pk)
+            .select_related('organization')
+            .first()
+        ) or user
 
     org = getattr(user, 'organization', None)
     org_name = getattr(org, 'name', None) if org else None

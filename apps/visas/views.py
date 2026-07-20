@@ -180,7 +180,7 @@ class VisaInvoiceEmailView(APIView):
             from django.conf import settings as django_settings
             from django.core.mail import EmailMessage
             billing = invoice_billing_for_user(request.user)
-        buf = generate_visa_invoice(visa, display_currency, optional_fields, billing=billing)
+            buf = generate_visa_invoice(visa, display_currency, optional_fields, billing=billing)
             email = EmailMessage(
                 subject=f'Invoice {visa.invoice_no} – {visa.client_name}',
                 body='Please find your invoice attached.',

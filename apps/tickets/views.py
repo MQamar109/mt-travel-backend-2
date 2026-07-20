@@ -208,7 +208,7 @@ class TicketInvoiceEmailView(APIView):
             from django.conf import settings as django_settings
             from django.core.mail import EmailMessage
             billing = invoice_billing_for_user(request.user)
-        buf = generate_ticket_invoice(ticket, display_currency, optional_fields, billing=billing)
+            buf = generate_ticket_invoice(ticket, display_currency, optional_fields, billing=billing)
             email = EmailMessage(
                 subject=f'Invoice {ticket.invoice_no} – {ticket.customer_name}',
                 body='Please find your invoice attached.',
