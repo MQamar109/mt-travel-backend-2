@@ -1,7 +1,9 @@
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Case, DecimalField, F, When
+from django.db.models import Case, DecimalField, F, Value, When
 from django.db.models.functions import Coalesce
+
+_AMOUNT_OUTPUT = DecimalField(max_digits=14, decimal_places=2)
 
 
 def get_display_amount(total_amount, record_currency, exchange_rate, display_currency):
@@ -30,17 +32,15 @@ def display_amount_expression(display_currency):
     SAR: SAR records as-is; PKR records divided by exchange_rate
     """
     if display_currency == 'PKR':
-        return Coalesce('pkr_amount', 'total_amount')
+        return Coalesce(F('pkr_amount'), F('total_amount'), output_field=_AMOUNT_OUTPUT)
+
+    safe_rate = Coalesce(F('exchange_rate'), Value(1), output_field=_AMOUNT_OUTPUT)
 
     return Case(
         When(currency='SAR', then=F('total_amount')),
-        When(
-            currency='PKR',
-            then=F('total_amount') / F('exchange_rate'),
-            output_field=DecimalField(max_digits=14, decimal_places=2),
-        ),
+        When(currency='PKR', then=F('total_amount') / safe_rate),
         default=F('total_amount'),
-        output_field=DecimalField(max_digits=14, decimal_places=2),
+        output_field=_AMOUNT_OUTPUT,
     )
 
 

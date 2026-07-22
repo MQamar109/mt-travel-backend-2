@@ -206,19 +206,28 @@ set -euo pipefail
 cd ~/mt-travel-backend-2
 OLD_EMAIL=\$(grep -E '^EMAIL_HOST_USER=' .env 2>/dev/null | cut -d= -f2- || true)
 OLD_PASS=\$(grep -E '^EMAIL_HOST_PASSWORD=' .env 2>/dev/null | cut -d= -f2- || true)
+OLD_DB_PASSWORD=\$(grep -E '^DB_PASSWORD=' .env 2>/dev/null | cut -d= -f2- || true)
+OLD_DB_NAME=\$(grep -E '^DB_NAME=' .env 2>/dev/null | cut -d= -f2- || true)
+OLD_DB_USER=\$(grep -E '^DB_USER=' .env 2>/dev/null | cut -d= -f2- || true)
 git fetch origin main
 git reset --hard origin/main
 EMAIL_USER="${EMAIL_USER}"
 EMAIL_PASS="${EMAIL_PASS}"
+DB_PASSWORD="${DB_PASSWORD}"
+DB_NAME="tms_db"
+DB_USER="tms_user"
 if [[ -z "\$EMAIL_USER" && -n "\$OLD_EMAIL" ]]; then EMAIL_USER="\$OLD_EMAIL"; fi
 if [[ -z "\$EMAIL_PASS" && -n "\$OLD_PASS" ]]; then EMAIL_PASS="\$OLD_PASS"; fi
+if [[ -n "\$OLD_DB_PASSWORD" ]]; then DB_PASSWORD="\$OLD_DB_PASSWORD"; fi
+if [[ -n "\$OLD_DB_NAME" ]]; then DB_NAME="\$OLD_DB_NAME"; fi
+if [[ -n "\$OLD_DB_USER" ]]; then DB_USER="\$OLD_DB_USER"; fi
 cat > .env <<ENV
 SECRET_KEY=${SECRET_KEY}
 DEBUG=False
 ALLOWED_HOSTS=${PUBLIC_DNS},${CLOUDFRONT_DOMAIN},${PUBLIC_IP}
-DB_NAME=tms_db
-DB_USER=tms_user
-DB_PASSWORD=${DB_PASSWORD}
+DB_NAME=\${DB_NAME}
+DB_USER=\${DB_USER}
+DB_PASSWORD=\${DB_PASSWORD}
 DB_HOST=db
 DB_PORT=5432
 CORS_ALLOWED_ORIGINS=${CORS_ORIGIN}
