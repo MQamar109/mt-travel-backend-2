@@ -11,6 +11,7 @@ from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
+from apps.core.export_pdf import pdf_cell_paragraph
 from apps.core.running_balance import apply_balance_step
 from apps.tickets.utils import get_display_amount
 
@@ -180,7 +181,8 @@ def generate_excel(hotels, display_currency, meta):
         for col_idx, val in enumerate(row, 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.fill = PatternFill(start_color=fill_hex, end_color=fill_hex, fill_type='solid')
-            cell.alignment = Alignment(horizontal='center', vertical='center')
+            wrap = col_idx in (2, 5, 7)  # vendor, hotel, guest
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=wrap)
             cell.font = Font(size=8)
             if isinstance(val, float):
                 cell.number_format = '#,##0.00'
@@ -190,7 +192,7 @@ def generate_excel(hotels, display_currency, meta):
     # ── Column widths ──
     for col_letter, width in {
         'A': 5,  'B': 16, 'C': 12, 'D': 12, 'E': 20, 'F': 10,
-        'G': 14, 'H': 5,
+        'G': 22, 'H': 5,
         'I': 6,  'J': 6,  'K': 6,  'L': 6,
         'M': 11, 'N': 11, 'O': 11, 'P': 11,
         'Q': 9,  'R': 9,  'S': 9,
@@ -213,7 +215,7 @@ _PDF_COL_WIDTHS = [
     38, 38,       # In / Out
     60,           # Hotel
     38,           # Res No
-    52,           # Guest
+    72,           # Guest (wider + wrap)
     16,           # Nts
     18, 18, 18, 18,        # Room qty
     36, 36, 36, 36,        # Room rates
@@ -283,12 +285,20 @@ def generate_pdf(hotels, display_currency, meta):
     ]
 
     pdf_data = []
+    # Text columns that must wrap inside the cell (0-based indices)
+    wrap_cols = {1, 4, 5, 6, 22}
     for row in data_rows:
-        pdf_data.append([
-            '—' if v is None
-            else (f'{v:,.2f}' if isinstance(v, float) else str(v))
-            for v in row
-        ])
+        out = []
+        for col_i, v in enumerate(row):
+            if v is None:
+                out.append('—')
+            elif isinstance(v, float):
+                out.append(f'{v:,.2f}')
+            elif col_i in wrap_cols:
+                out.append(pdf_cell_paragraph(v, font_size=6))
+            else:
+                out.append(str(v))
+        pdf_data.append(out)
 
     table_data = [h_row1, h_row2, h_row3] + pdf_data
 
@@ -341,7 +351,7 @@ def generate_pdf(hotels, display_currency, meta):
         ('FONTNAME',      (0, 0), (-1, 2), 'Helvetica-Bold'),
         ('FONTSIZE',      (0, 0), (-1, 2), 6),
         ('ALIGN',         (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
         ('FONTSIZE',      (0, 3), (-1, -1), 6),
         ('GRID',          (0, 0), (-1, -1), 0.3, colors.grey),
         ('TOPPADDING',    (0, 0), (-1, -1), 2),

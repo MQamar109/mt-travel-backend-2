@@ -11,6 +11,7 @@ from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
+from apps.core.export_pdf import pdf_cell_paragraph, pdf_row_cells, proportional_col_widths, text_column_indices
 from apps.core.running_balance import apply_balance_step
 from .utils import get_display_amount
 
@@ -74,6 +75,7 @@ def generate_excel(tickets, display_currency, meta, options=None):
     meta_parts = [meta.get('duration', 'All Dates')]
     if meta.get('vendor_name'):
         meta_parts.append(f"Vendor: {meta['vendor_name']}")
+    meta_parts.append(f'Currency: {display_currency}')
     ws.merge_cells('A2:J2')
     ws['A2'].value = '   |   '.join(meta_parts)
     ws['A2'].font = Font(size=11, italic=True)
@@ -101,14 +103,32 @@ def generate_excel(tickets, display_currency, meta, options=None):
         for col_idx in range(1, len(row) + 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type='solid')
-            cell.alignment = Alignment(horizontal='center')
+            header = headers[col_idx - 1].lower() if col_idx <= len(headers) else ''
+            wrap = 'name' in header or 'customer' in header or 'vendor' in header
+            cell.alignment = Alignment(
+                horizontal='center',
+                vertical='center',
+                wrap_text=wrap,
+            )
             if isinstance(cell.value, float):
                 cell.number_format = '#,##0.00'
 
-    # Auto-width columns
-    for col in ws.columns:
-        max_len = max((len(str(c.value)) for c in col if c.value), default=10)
-        ws.column_dimensions[get_column_letter(col[0].column)].width = min(max_len + 4, 30)
+    # Column widths — cap wide text columns, ensure amount/type/balance visible
+    for col_idx, header in enumerate(headers, 1):
+        letter = get_column_letter(col_idx)
+        h = header.lower()
+        if 'name' in h or 'customer' in h:
+            ws.column_dimensions[letter].width = 28
+        elif 'amount' in h or 'balance' in h:
+            ws.column_dimensions[letter].width = 14
+        elif 'payment' in h or 'type' in h:
+            ws.column_dimensions[letter].width = 12
+        else:
+            max_len = max(
+                (len(str(ws.cell(row=r, column=col_idx).value or '')) for r in range(header_row_idx, ws.max_row + 1)),
+                default=10,
+            )
+            ws.column_dimensions[letter].width = min(max_len + 3, 22)
 
     buffer = BytesIO()
     wb.save(buffer)
@@ -140,6 +160,7 @@ def generate_pdf(tickets, display_currency, meta, options=None):
     meta_parts = [meta.get('duration', 'All Dates')]
     if meta.get('vendor_name'):
         meta_parts.append(f"Vendor: {meta['vendor_name']}")
+    meta_parts.append(f'Currency: {display_currency}')
     meta_style = ParagraphStyle('Meta', parent=styles['Normal'], alignment=TA_CENTER, fontSize=10)
     elements.append(Paragraph('   |   '.join(meta_parts), meta_style))
     elements.append(Spacer(1, 14))
@@ -148,16 +169,8 @@ def generate_pdf(tickets, display_currency, meta, options=None):
         tickets, display_currency, show_vendor, show_dep_date, show_tickets_count
     )
 
-    # Format numbers in data rows for PDF
-    pdf_rows = []
-    for row in data_rows:
-        pdf_row = []
-        for val in row:
-            if isinstance(val, float):
-                pdf_row.append(f'{val:,.2f}')
-            else:
-                pdf_row.append(str(val))
-        pdf_rows.append(pdf_row)
+    text_indices = text_column_indices(headers)
+    pdf_rows = [pdf_row_cells(row, text_indices) for row in data_rows]
 
     table_data = [headers] + pdf_rows
 
@@ -169,20 +182,23 @@ def generate_pdf(tickets, display_currency, meta, options=None):
         bg = colors.white if i % 2 != 0 else alt_bg
         row_backgrounds.append(('BACKGROUND', (0, i), (-1, i), bg))
 
+    usable_width = landscape(A4)[0] - 2 * cm
+    col_widths = proportional_col_widths(headers, usable_width)
+
     style = TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), header_bg),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 8),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTSIZE', (0, 1), (-1, -1), 7),
         ('GRID', (0, 0), (-1, -1), 0.4, colors.grey),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ] + row_backgrounds)
 
-    t = Table(table_data, repeatRows=1)
+    t = Table(table_data, colWidths=col_widths, repeatRows=1)
     t.setStyle(style)
     elements.append(t)
 
